@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: demo
+  template:
+    metadata:
+      labels:
+        app: demo
+    spec:
+      containers:
+      - name: demo
+        image: docker.io/dendyf/k8s-demo:1.0
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: demo-config
+        - secretRef:
+            name: demo-secret
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo
+spec:
+  selector:
+    app: demo
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - demo.k8s.nuanu.site
+    secretName: demo-tls
+  rules:
+  - host: demo.k8s.nuanu.site
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: demo
+            port:
+              number: 80
